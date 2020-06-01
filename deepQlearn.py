@@ -20,7 +20,7 @@ class QLearningAlgorithm():
         self.weights = weights
         self.numIters = 0
         self.model = NeuralNetwork(batchSize, weights)
-        self.cache = deque(maxlen=1000000)
+        self.cache = deque(maxlen=65536)
 
     # This algorithm will produce an action given a state.
     # Here we use the epsilon-greedy algorithm: with probability
@@ -59,7 +59,7 @@ class NeuralNetwork():
         self.model.add(Dense(256, input_dim=8, activation='relu'))
         self.model.add(Dense(128, activation='relu'))
         self.model.add(Dense(4, activation='linear'))
-        adam = keras.optimizers.adam(lr=0.001)
+        adam = keras.optimizers.adam(lr=0.0001)
         self.model.compile(loss='mse', optimizer=adam)
         if isinstance(weights, str):
             self.model.load_weights(weights)
@@ -132,14 +132,14 @@ def simulate(env, rl, numTrials=10, train=False, verbose=False,
 
 ## Main variables
 # np.random.seed(0)
-numEpochs = 500
+numEpochs = 1500
 numTrials = 1
 numTestTrials = 20
 trialDemoInterval = numTrials
 discountFactor = 0.99
-explorProbInit = 1.0
-exploreProbDecay = 0.999
-explorationProbMin = 0.01
+explorProbInit = 0.5
+exploreProbDecay = 0.99
+explorationProbMin = 0.0
 batchSize = 64
 
 if __name__ == '__main__':
