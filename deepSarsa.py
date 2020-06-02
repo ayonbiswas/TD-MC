@@ -1,17 +1,3 @@
-'''###########################################
-
-CS221 Final Project: Deep Q-Learning Implementation
-
-Authors:
-
-Kongphop Wongpattananukul (kongw@stanford.edu)
-
-Pouya Rezazadeh Kalehbasti (pouyar@stanford.edu)
-
-Dong Hee Song (dhsong@stanford.edu)
-
-###########################################'''
-
 import sys, math
 import numpy as np
 from collections import deque
@@ -34,7 +20,7 @@ class SarsaAlgorithm():
         self.weights = weights
         self.numIters = 0
         self.model = NeuralNetwork(batchSize, weights)
-        
+
 
     # This algorithm will produce an action given a state.
     # Here we use the epsilon-greedy algorithm: with probability
@@ -54,6 +40,8 @@ class SarsaAlgorithm():
         # initialize variable
         states = np.squeeze(states)
         newStates = np.squeeze(newStates)
+        states = states.reshape(1, 8)
+        newStates = newStates.reshape(1, 8)
         X = states
         y = self.model.predict(states)
         # calculate gradient
@@ -103,71 +91,47 @@ def simulate(env, rl, numTrials=10, train=False, verbose=False,
     totalRewards = []  # The rewards we get on each trial
     for trial in range(numTrials):
         state = np.reshape(env.reset(), (1,8))
+        action = rl.getAction(state)
         totalReward = 0
         iteration = 0
-        batch = deque(maxlen=1000)
-        while iteration <= 500:
-        # while True:
-            
-            # for i in range(batchSize):
 
-            action = rl.getAction(state)
+        while True:
+
             newState, reward, done, info = env.step(action)
             newState = np.reshape(newState, (1,8))
             newAction = rl.getAction(newState)
-            # Appending the new results to the deque
-            # if(len(batch)>batchSize):
-                
-            # else:
-            batch.append((state, action, reward, newState, newAction, done))
-
-            # print(reward,done)
-            # update
-            if(not done):
-                totalReward += reward
-                state = newState
-                iteration += 1
 
             if verbose == True and trial % trialDemoInterval == 0:
                 still_open = env.render()
                 if still_open == False: break
-            
 
 
-            # Conducting memory replay
-            # if len(rl.batch) < batchSize: # Waiting till memory size is larger than batch size
-            #     continue
-            # else:
-            if(len(batch)==batchSize):
-                # batch = random.sample(rl.batch, batchSize)
-                states = np.array([sample[0] for sample in batch])
-                actions = np.array([sample[1] for sample in batch])
-                rewards = np.array([sample[2] for sample in batch])
-                newStates = np.array([sample[3] for sample in batch])
-                newActions = np.array([sample[4] for sample in batch])
 
-                dones = np.array([sample[5] for sample in batch])
+            if train:
+                rl.incorporateFeedback(state, action, reward, newState, newAction,
+                                    done)
 
-                if train:
-                    rl.incorporateFeedback(states, actions, rewards, newStates, newActions,
-                                           dones)
-                    
-                    rl.explorationProb = max(rl.exploreProbDecay * rl.explorationProb,
-                                            rl.explorationProbMin)
-                    batch = deque(maxlen=1000)
+                rl.explorationProb = max(rl.exploreProbDecay * rl.explorationProb,
+                                        rl.explorationProbMin)
+                    #batch = deque(maxlen=1000)
+
+            if(not done):
+                totalReward += reward
+                state = newState
+                action = newAction
+                iteration += 1
 
             if done:
                 break
-        
+
         totalRewards.append(totalReward)
         if verbose:
             print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
             print(('Mean(last 10 total rewards): {}'.format(np.mean(totalRewards[-10:]))))
-        
+
     return totalRewards
 
 ## Main variables
-# np.random.seed(0)
 numEpochs = 1000
 numTrials = 1
 numTestTrials = 10
@@ -176,14 +140,14 @@ discountFactor = 0.99
 explorProbInit = 1.0
 exploreProbDecay = 0.999
 explorationProbMin = 0.0
-batchSize = 2
+batchSize = 1
 
 if __name__ == '__main__':
     # Initiate weights
     # Cold start weights
-    # weights = None
+    weights = None
     # Warm start weights
-    weights = './weights/weights_sarsa.h5'
+    #weights = './weights/weights_sarsa.h5'
 
     # TRAIN
     print('\n++++++++++++ TRAINING +++++++++++++')
@@ -193,9 +157,11 @@ if __name__ == '__main__':
     env = gym.make('LunarLander-v2')
     # env.seed(0)
 
+    totalRewards_list = []
     for i in range(numEpochs):
         totalRewards = simulate(env, rl, numTrials=numTrials, train=True, verbose=False,
                                 trialDemoInterval=trialDemoInterval, batchSize=batchSize)
+        totalRewards_list.append(totalRewards)
         print('Average Total Reward in Trial {}/{}: {}'.format(i, numEpochs, np.mean(totalRewards)))
     env.close()
     # Save Weights
