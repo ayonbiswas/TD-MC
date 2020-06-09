@@ -39,15 +39,13 @@ class QLearningAlgorithm():
         return 1.0 / math.sqrt(self.numIters)
 
 
-    def incorporateFeedback(self, state, action, reward, newState):
+    def incorporateFeedback(self, state, action, reward, newState, newAction):
         # calculate gradient
         eta = self.getStepSize()
         if newState is not None:
-            # find maximum Q value from next state
-            V_opt = max(self.getQ(newState, possibleAction) for possibleAction in self.actions)
+            V_opt = self.getQ(newState, newAction)
         else:
-            # V_opt of end state is 0
-            V_opt = 0.0
+            V_opt = 0
         Q_opt = self.getQ(state, action)
         target = reward + self.discount * V_opt
         # update weight
@@ -80,32 +78,44 @@ def modFeatureExtractor(state, action):
 
 def simulate(env, rl, numTrials=100, train=False, verbose=False, trialDemoInterval=10):
     totalRewards = []  # The rewards we get on each trial
+    max_totalReward = 0.0
     for trial in range(numTrials):
         state = env.reset()
+        action = rl.getAction(state)
         totalReward = 0
         iteration = 0
         while True:#iteration < 1000:
-            action = rl.getAction(state)
+            #action = rl.getAction(state)
             newState, reward, done, info = env.step(action)
+            newAction = rl.getAction(newState)
 
-            if train:
-                rl.incorporateFeedback(state, action, reward, newState)
+            if (train == True):
+                rl.incorporateFeedback(state, action, reward, newState, newAction)
+                rl.explorationProb = max(rl.exploreProbDecay * rl.explorationProb, rl.explorationProbMin)
+
             totalReward += reward
-            rl.explorationProb = max(rl.exploreProbDecay * rl.explorationProb,
-                                         rl.explorationProbMin)
             state = newState
+            action = newAction
             iteration += 1
-            
+
             if verbose == True:
                 still_open = env.render()
+                if still_open == False: break
 
             if done:
                 break
 
         totalRewards.append(totalReward)
-        if verbose and trial % 20 == 0:
+        mean_totalReward = np.mean(totalRewards[-10:])
+        if((mean_totalReward>max_totalReward) and (train==True)):
+            # Save Weights
+            saveF(weights, 'linear_sarsa')
+            max_totalReward = mean_totalReward
+            print('The weights are saved with total rewards: ',mean_totalReward)
+
+        if trial % 20 == 0:
             print(('\n---- Trial {} ----'.format(trial)))
-            print(('Mean(last 10 total rewards): {}'.format(np.mean(totalRewards[-100:]))))
+            print(('Mean(last 20 total rewards): {}'.format(np.mean(totalRewards[-20:]))))
             print(('Size(weight vector): {}'.format(len(rl.weights))))
 
     return totalRewards, rl.weights
@@ -114,11 +124,11 @@ def simulate(env, rl, numTrials=100, train=False, verbose=False, trialDemoInterv
 # Helper functions for storing and loading the weights
 import pickle
 def saveF(obj, name):
-    with open('weights/'+name + '.pkl', 'wb') as f:
+    with open('weights/'+ name + '.pkl', 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
 def loadF(name):
-    with open('weights/'+name + '.pkl', 'rb') as f:
+    with open('weights/'+ name + '.pkl', 'rb') as f:
         return pickle.load(f)
 
 
@@ -131,7 +141,7 @@ trialDemoInterval = numTrials/2
 discountFactor = 0.99
 explorProbInit = 0.5
 exploreProbDecay = 0.99
-explorationProbMin = 0.01
+explorationProbMin = 0.0
 
 
 # Main function
@@ -141,8 +151,7 @@ if __name__ == '__main__':
     # Warm start weights
     # weights = loadF('weights')
 
-    # # TRAIN
-    # # for i in range(numEpochs):
+    # TRAIN
     # rl = QLearningAlgorithm([0, 1, 2, 3], discountFactor, modFeatureExtractor,
     #                         weights, explorProbInit, exploreProbDecay,
     #                         explorationProbMin)
@@ -152,17 +161,14 @@ if __name__ == '__main__':
     # totalRewards, weights = simulate(env, rl, numTrials=numTrials, train=True, verbose=True, trialDemoInterval=trialDemoInterval)
     # env.close()
     # print('Average Total Training Reward: {}'.format(np.mean(totalRewards)))
-    #
-    # # Save Weights
-    # saveF(weights, 'linear')
 
-    #load weights
-    weights = loadF('linear')
 
 
     #TEST
-    print('\n\n++++++++++++++ TESTING +++++++++++++++')
+    #load weights
+    weights = loadF('linear_sarsa')
     env = gym.make('LunarLander-v2')
+    print('\n\n++++++++++++++ TESTING +++++++++++++++')
     rl = QLearningAlgorithm([0, 1, 2, 3], discountFactor, modFeatureExtractor,
                             weights, 0.0, 1,
                             0.00)
