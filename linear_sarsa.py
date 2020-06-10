@@ -139,9 +139,9 @@ numTrials = 2000
 numTestTrials = 30
 trialDemoInterval = numTrials/2
 discountFactor = 0.99
-explorProbInit = 0.5
+explorProbInit = 1
 exploreProbDecay = 0.99
-explorationProbMin = 0.0
+explorationProbMin = 0.01
 
 
 # Main function
@@ -152,15 +152,15 @@ if __name__ == '__main__':
     # weights = loadF('weights')
 
     # TRAIN
-    # rl = QLearningAlgorithm([0, 1, 2, 3], discountFactor, modFeatureExtractor,
-    #                         weights, explorProbInit, exploreProbDecay,
-    #                         explorationProbMin)
-    # env = gym.make('LunarLander-v2')
-    # # env.seed(0)
-    # print('\n++++++++++++ TRAINING +++++++++++++')
-    # totalRewards, weights = simulate(env, rl, numTrials=numTrials, train=True, verbose=True, trialDemoInterval=trialDemoInterval)
-    # env.close()
-    # print('Average Total Training Reward: {}'.format(np.mean(totalRewards)))
+    rl = QLearningAlgorithm([0, 1, 2, 3], discountFactor, modFeatureExtractor,
+                            weights, explorProbInit, exploreProbDecay,
+                            explorationProbMin)
+    env = gym.make('LunarLander-v2')
+    # env.seed(0)
+    print('\n++++++++++++ TRAINING +++++++++++++')
+    totalRewards, weights = simulate(env, rl, numTrials=numTrials, train=True, verbose=False, trialDemoInterval=trialDemoInterval)
+    env.close()
+    print('Average Total Training Reward: {}'.format(np.mean(totalRewards)))
 
 
 
