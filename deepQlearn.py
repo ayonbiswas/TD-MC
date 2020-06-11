@@ -10,6 +10,8 @@ from keras.layers import Dense
 
 
 ############################################################
+
+
 class QLearningAlgorithm():
     def __init__(self, actions, discount, weights, explorationProb=0.2, exploreProbDecay=0.99, explorationProbMin=0.01, batchSize=32):
         self.actions = actions
@@ -21,6 +23,8 @@ class QLearningAlgorithm():
         self.numIters = 0
         self.model = NeuralNetwork(batchSize, weights)
         self.cache = deque(maxlen=65536)
+        self.state_bounds = [[-np.pi,np.pi] for i in range(8)]
+        self.state_bins = [10,10,10,10,10,10,10,10]
 
     # This algorithm will produce an action given a state.
     # Here we use the epsilon-greedy algorithm: with probability
@@ -43,14 +47,25 @@ class QLearningAlgorithm():
         X = states
         y = self.model.predict(states)
         # calculate gradient
-        targets = rewards + self.discount*(np.amax(self.model.predict(newStates), axis=1))*(1-dones)
         ind = np.array([i for i in range(len(states))])
-        y[[ind], [actions]] = targets
+        y[[ind], [actions]] = y[[ind], [actions]]+ 0.5*(rewards + self.discount*(np.amax(self.model.predict(newStates), axis=1))*(1-dones) - y[[ind], [actions]])
+        
+         # = targets
         # update weight
         self.model.fit(X, y)
 
     def updateCache(self, state, action, reward, newState, done):
         self.cache.append((state, action, reward, newState, done))
+
+    def discretize_states(self, state):
+        ratios = [(state[i] + abs(self.state_bounds[i][0])) / (self.state_bounds[i][1] - self.state_bounds[i][0]) for i
+          in range(len(state))]
+        state_d = [int(round((self.state_bins[i] - 1) * ratios[i])) for i in range(len(state))]
+        state_d = [min(self.state_bins[i] - 1, max(0, state_d[i])) for i in range(len(state))]
+
+        return state_d
+
+
 
 # neural network
 class NeuralNetwork():
@@ -148,7 +163,7 @@ if __name__ == '__main__':
     weights = None
     # Warm start weights
 #     weights = 'weights.h5'
-
+    print("asdasdasd")
     # # TRAIN
     # print('\n++++++++++++ TRAINING +++++++++++++')
     # rl = QLearningAlgorithm([0, 1, 2, 3], discountFactor, weights,
@@ -156,18 +171,18 @@ if __name__ == '__main__':
     #                         explorationProbMin, batchSize)
     # env = gym.make('LunarLander-v2')
     # # env.seed(0)
-    #
+    
     # for i in range(numEpochs):
     #     totalRewards = simulate(env, rl, numTrials=numTrials, train=True, verbose=False,
     #                             trialDemoInterval=trialDemoInterval, batchSize=batchSize)
     #     print('Average Total Reward in Trial {}/{}: {}'.format(i, numEpochs, np.mean(totalRewards)))
     # env.close()
     # #Save Weights
-    # rl.model.save('weights.h5')
+    # rl.model.save('weights_qtry2.h5')
 
     # TEST
     print('\n\n++++++++++++++ TESTING +++++++++++++++')
-    weights = 'weights_1000_dqn.h5'
+    weights = 'weights_qtry2.h5'
     env = gym.make('LunarLander-v2')
     #env.seed(3)
     rl = QLearningAlgorithm([0, 1, 2, 3], discountFactor, weights, 0.0, 0.0, 0.0, batchSize)

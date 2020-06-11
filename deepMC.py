@@ -41,10 +41,14 @@ class SarsaAlgorithm():
         states = np.squeeze(states)
         X = states
         y = self.model.predict(states)
-        targets = rewards
+        # targets = rewards
         # print(targets.shape)
+        alpha = 0.5
+        # targets = rewards + self.discount*(np.amax(self.model.predict(newStates), axis=1))*(1-dones)
         ind = np.array([i for i in range(len(states))])
-        y[[ind], [actions]] = targets
+        y[[ind], [actions]] = (1-alpha)*y[[ind], [actions]] + alpha*(rewards)
+        
+        # y[[ind], [actions]] = targets
         # update weight
         self.model.fit(X, y)
 
@@ -59,7 +63,7 @@ class NeuralNetwork():
         self.model.add(Dense(128, activation='relu'))
         self.model.add(Dense(4, activation='linear'))
 
-        adam = keras.optimizers.adam(lr=0.001)
+        adam = keras.optimizers.adam(lr=0.0001)
         self.model.compile(loss='mse', optimizer=adam)
         if isinstance(weights, str):
             self.model.load_weights(weights)
@@ -136,7 +140,7 @@ def simulate(env, rl, numTrials=10, train=False, verbose=False,
         mean_totalReward = np.mean(totalRewards[-5:])
         if((mean_totalReward>max_totalReward) and (train==True)):
             # Save Weights
-            saveF(weights, 'deep_MC')
+            saveF(rl.weights, 'deep_MC')
             max_totalReward = mean_totalReward
             print('The weights are saved with total rewards: ',mean_totalReward)
 
@@ -146,7 +150,7 @@ def simulate(env, rl, numTrials=10, train=False, verbose=False,
 
 ## Main variables
 numTrials = 4000
-numTestTrials = 10
+numTestTrials = 5
 trialDemoInterval = numTrials/2
 discountFactor = 0.99
 explorProbInit = 1.0
@@ -158,24 +162,25 @@ if __name__ == '__main__':
     # Initiate weights
     # Cold start weights
     weights = None
-    # Warm start weights
-    #weights = './weights/weights_sarsa.h5'
+    # # Warm start weights
+    # #weights = './weights/weights_sarsa.h5'
 
-    TRAIN
-    print('\n++++++++++++ TRAINING +++++++++++++')
-    rl = SarsaAlgorithm([0, 1, 2, 3], discountFactor, weights,
-                            explorProbInit, exploreProbDecay,
-                            explorationProbMin, batchSize)
-    env = gym.make('LunarLander-v2')
-    totalRewards_list = []
-    totalRewards = simulate(env, rl, numTrials=numTrials, train=True, verbose=False,
-                            trialDemoInterval=trialDemoInterval, batchSize=batchSize)
-    env.close()
-    Save Weights
+    # TRAIN
+    # print('\n++++++++++++ TRAINING +++++++++++++')
+    # rl = SarsaAlgorithm([0, 1, 2, 3], discountFactor, weights,
+    #                         explorProbInit, exploreProbDecay,
+    #                         explorationProbMin, batchSize)
+    # env = gym.make('LunarLander-v2')
+    # totalRewards_list = []
+    # totalRewards = simulate(env, rl, numTrials=numTrials, train=True, verbose=False,
+    #                         trialDemoInterval=trialDemoInterval, batchSize=batchSize)
+    # env.close()
+    # Save Weights
 
     # TEST
     print('\n\n++++++++++++++ TESTING +++++++++++++++')
     weights = loadF('deep_MC')
+    print(weights)
     env = gym.make('LunarLander-v2')
     rl = SarsaAlgorithm([0, 1, 2, 3], discountFactor, weights, 0.0, 0.0, 0.0, batchSize)
     totalRewards = simulate(env, rl, numTrials=numTestTrials, train=False, verbose=True, trialDemoInterval=trialDemoInterval)

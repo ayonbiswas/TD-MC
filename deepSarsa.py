@@ -10,6 +10,10 @@ from keras.layers import Dense
 
 
 ############################################################
+# class Base:
+
+
+
 class SarsaAlgorithm():
     def __init__(self, actions, discount, weights, explorationProb=0.2, exploreProbDecay=0.99, explorationProbMin=0.01, batchSize=32):
         self.actions = actions
