@@ -318,10 +318,10 @@ if __name__ == '__main__':
     # print(model)
     # print(rl.model)
     # Save Weights
-    saveF(model, 'model_tl_q')
+    saveF(model, 'model_tl_q4')
     # with open('weights.json', 'w') as fileOpen:
         # json.dump(model, fileOpen)
-    model = loadF('model_tl_q')
+    model = loadF('model_tl_q4')
     
     # TEST
     print('\n\n++++++++++++++ TESTING +++++++++++++++')
