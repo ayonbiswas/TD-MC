@@ -57,7 +57,7 @@ class QLearningAlgorithm():
 
 def modFeatureExtractor(state, action):
     # Action: 0: Nop, 1: fire left engine, 2: main engine, 3: right engine
-    x, y, Vx, Vy, Th, VTh, LeftC, RightC = state
+    # x, y, Vx, Vy, Th, VTh, LeftC, RightC = state
 
     #Features
     x_todo = state[0]*0.5 + state[2]*1.0

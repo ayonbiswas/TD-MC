@@ -62,7 +62,7 @@ class QLearningAlgorithm():
         # self.feature_ranges = [[-1, 1], [2, 5]]  # 2 features
         self.state_bounds = [(-1.5,1.5) for i in range(6)] + [(0,1),(0,1)]
         # self.tiles_per_dim = [5,5,3,3,2,5,1,1]
-        self.tiles_per_dim = [4,4,3,3,2,4,1,1]
+        self.tiles_per_dim = [3,3,3,3,2,5,1,1]
 
         self.number_tilings = 3
         self.Tcoder = TileCoder(self.tiles_per_dim, self.state_bounds, self.number_tilings)
@@ -282,6 +282,7 @@ def loadF(name):
 
 
 ## Main variables
+
 numFeatures = 4
 numActions = 4
 numEpochs = 1

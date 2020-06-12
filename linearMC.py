@@ -1,6 +1,6 @@
 import sys, math
 import numpy as np
-from collections import deque
+from collections import deque, defaultdict
 import random
 import copy
 import gym
@@ -9,9 +9,27 @@ from keras.models import Sequential
 from keras.layers import Dense
 
 
+class TileCoder:
+    def __init__(self, tiles_per_dim, value_limits, tilings, offset=lambda n: 2 * np.arange(n) + 1):
+        tiling_dims = np.array(np.ceil(tiles_per_dim), dtype=np.int) + 1
+        self._offsets = offset(len(tiles_per_dim)) * \
+          np.repeat([np.arange(tilings)], len(tiles_per_dim), 0).T / float(tilings) % 1
+        self._limits = np.array(value_limits)
+        self._norm_dims = np.array(tiles_per_dim) / (self._limits[:, 1] - self._limits[:, 0])
+        self._tile_base_ind = np.prod(tiling_dims) * np.arange(tilings)
+        self._hash_vec = np.array([np.prod(tiling_dims[0:i]) for i in range(len(tiles_per_dim))])
+        self._n_tiles = tilings * np.prod(tiling_dims)
+  
+    def __getitem__(self, x):
+        off_coords = ((x - self._limits[:, 0]) * self._norm_dims + self._offsets).astype(int)
+        return tuple(self._tile_base_ind + np.dot(off_coords, self._hash_vec))
+
+    @property
+    def n_tiles(self):
+        return self._n_tiles
 ############################################################
 class SarsaAlgorithm():
-    def __init__(self, actions, discount, weights, explorationProb=0.2, exploreProbDecay=0.99, explorationProbMin=0.01, batchSize=32):
+    def __init__(self,model, actions, discount, weights, explorationProb=0.2, exploreProbDecay=0.99, explorationProbMin=0.01, batchSize=32):
         self.actions = actions
         self.discount = discount
         self.explorationProb = explorationProb
@@ -19,62 +37,50 @@ class SarsaAlgorithm():
         self.explorationProbMin = explorationProbMin
         self.weights = weights
         self.numIters = 0
-        self.model = NeuralNetwork(batchSize, weights)
+        # self.model = NeuralNetwork(batchSize, weights)
+        self.state_bounds = [(-1.5,1.5) for i in range(6)] + [(0,1),(0,1)]
+        # self.tiles_per_dim = [5,5,5,5,5,5,1,1]
+        self.tiles_per_dim = [3,3,3,3,2,3,1,1]
 
+        self.number_tilings = 3
+        self.Tcoder = TileCoder(self.tiles_per_dim, self.state_bounds, self.number_tilings)
 
     # This algorithm will produce an action given a state.
     # Here we use the epsilon-greedy algorithm: with probability
     # |explorationProb|, take a random action.
     def getAction(self, state):
-        if np.random.rand() < self.explorationProb:
+        self.numIters += 1
+        if random.random() < self.explorationProb:
             return random.choice(self.actions)
         else:
-            return np.argmax(self.model.predict(state)[0])
+            return np.argmax([model[(state, action)] for action in self.actions])
 
     # We will call this function with (s, a, r, s'), which you should use to update |weights|.
     # Note that if s is a terminal state, then s' will be None.  Remember to check for this.
     # You should update the weights using self.getStepSize(); use
     # self.getQ() to compute the current estimate of the parameters.
-    def incorporateFeedback(self, states, actions, rewards):
-        # initialize variable
-        states = np.squeeze(states)
-        X = states
-        y = self.model.predict(states)
-        # targets = rewards
-        # print(targets.shape)
-        alpha = 0.5
-        # targets = rewards + self.discount*(np.amax(self.model.predict(newStates), axis=1))*(1-dones)
-        ind = np.array([i for i in range(len(states))])
-        y[[ind], [actions]] = (1-alpha)*y[[ind], [actions]] + alpha*(rewards)
-        
-        # y[[ind], [actions]] = targets
+    def incorporateFeedback(self, state, action, reward):
+        # BEGIN_YOUR_CODE (our solution is 9 lines of code, but don't worry if you deviate from this)
+        # calculate gradient
+        # eta = self.getStepSize()
+        # if newState is not None:
+            # find maximum Q value from next state
+            # print(newState,action)
+            # V_opt = max([model[(newState, possibleAction)] for possibleAction in self.actions])
+        # else:
+            # V_opt of end state is 0
+            # V_opt = 0.0
+        # Q_opt = 
+
+        # target = reward + self.discount * V_opt
         # update weight
-        self.model.fit(X, y)
+        model[(state,action)] = 0.5*model[(state, action)] + 0.5 * (reward)
 
     # def updateCache(self, state, action, reward, newState, newAction, done):
     #     self.cache.append((state, action, reward, newState, newAction, done))
 
 # neural network
-class NeuralNetwork():
-    def __init__(self, batchSize = 32, weights=None):
-        self.model = Sequential()
-        self.model.add(Dense(256, input_dim=8, activation='relu'))
-        self.model.add(Dense(128, activation='relu'))
-        self.model.add(Dense(4, activation='linear'))
 
-        adam = keras.optimizers.adam(lr=0.0001)
-        self.model.compile(loss='mse', optimizer=adam)
-        if isinstance(weights, str):
-            self.model.load_weights(weights)
-
-    def predict(self, state):
-        return self.model.predict_on_batch(state)
-
-    def fit(self, X, y):
-        self.model.fit(X, y, epochs=1,  verbose=0)
-
-    def save(self, weights):
-        self.model.save_weights(weights)
 
 # Helper functions for storing and loading the weights
 import pickle
@@ -92,18 +98,22 @@ def simulate(env, rl, numTrials=10, train=False, verbose=False,
     totalRewards = []  # The rewards we get on each trial
     max_totalReward = 0
     for trial in range(numTrials):
-        state = np.reshape(env.reset(), (1,8))
+        state = env.reset()
         totalReward = 0
         iteration = 0
         trajectory = []
         rewards = []
-
+        state = rl.Tcoder[tuple(state)]
         while True:
-
+            # print(state.shape,tuple(state))
+            
             action = rl.getAction(state)
             newState, reward, done, info = env.step(action)
-            newState = np.reshape(newState, (1,8))
-            trajectory.append((state, action, newState, reward, done))
+            
+            
+            # newState = np.reshape(newState, (1,8))
+            newState =rl.Tcoder[tuple(newState)] 
+            trajectory.append((state, action,newState , reward, done))
             rewards.append(reward)
 
             if verbose == True:
@@ -116,21 +126,23 @@ def simulate(env, rl, numTrials=10, train=False, verbose=False,
 
             if done:
                 break
-
         if train:
             data = []
             for i in range(len(rewards)):
                 L = 0
                 for r in range(len(rewards)-i):
                     L += np.power(rl.discount, r)*rewards[r+i]
-                data.append((trajectory[i][0], trajectory[i][1], L))
+                # data.append((trajectory[i][0], trajectory[i][1], L))
+                model[(trajectory[i][0],trajectory[i][1])] = 0.5*model[(trajectory[i][0], trajectory[i][1])] + 0.5 * (L)
+                # rl.incorporateFeedback(, , L)
+            # for i in range(100):
+            #     batch = random.sample(data, batchSize)
 
-            for i in range(100):
-                batch = random.sample(data, batchSize)
-                states = np.array([sample[0] for sample in batch])
-                actions = np.array([sample[1] for sample in batch])
-                rewards = np.array([sample[2] for sample in batch])
-                rl.incorporateFeedback(states, actions, rewards)
+            # states = np.array([sample[0] for sample in data])
+            # # print(states)
+            # actions = np.array([sample[1] for sample in data])
+            # rewards = np.array([sample[2] for sample in data])
+            
 
 
             rl.explorationProb = max(rl.exploreProbDecay * rl.explorationProb, rl.explorationProbMin)
@@ -139,16 +151,16 @@ def simulate(env, rl, numTrials=10, train=False, verbose=False,
         mean_totalReward = np.mean(totalRewards[-5:])
         if((mean_totalReward>max_totalReward) and (train==True)):
             # Save Weights
-            saveF(rl.weights, 'deep_MC')
+            saveF(model, 'linear_MC')
             max_totalReward = mean_totalReward
             print('The weights are saved with total rewards: ',mean_totalReward)
-
-        print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
+        if(trial %50 == 0):
+            print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
 
     return totalRewards
 
 ## Main variables
-numTrials = 4000
+numTrials = 100000
 numTestTrials = 5
 trialDemoInterval = numTrials/2
 discountFactor = 0.99
@@ -161,12 +173,12 @@ if __name__ == '__main__':
     # Initiate weights
     # Cold start weights
     weights = None
-    # # Warm start weights
-    # #weights = './weights/weights_sarsa.h5'
-
-    # TRAIN
+    # # # Warm start weights
+    # # #weights = './weights/weights_sarsa.h5'
+    # model = defaultdict(float)
+    # # TRAIN
     # print('\n++++++++++++ TRAINING +++++++++++++')
-    # rl = SarsaAlgorithm([0, 1, 2, 3], discountFactor, weights,
+    # rl = SarsaAlgorithm(model, [0, 1, 2, 3], discountFactor, weights,
     #                         explorProbInit, exploreProbDecay,
     #                         explorationProbMin, batchSize)
     # env = gym.make('LunarLander-v2')
@@ -178,11 +190,10 @@ if __name__ == '__main__':
 
     # TEST
     print('\n\n++++++++++++++ TESTING +++++++++++++++')
-    weights = loadF('deep_MC')
-    print(weights)
+    model = loadF('linear_MC')
+    # print(weights)
     env = gym.make('LunarLander-v2')
-    rl = SarsaAlgorithm([0, 1, 2, 3], discountFactor, weights, 0.0, 0.0, 0.0, batchSize)
+    rl = SarsaAlgorithm(model,[0, 1, 2, 3], discountFactor, weights, 0.0, 0.0, 0.0, batchSize)
     totalRewards = simulate(env, rl, numTrials=numTestTrials, train=False, verbose=True, trialDemoInterval=trialDemoInterval)
     env.close()
     print('Average Total Testing Reward: {}'.format(np.mean(totalRewards)))
-    

@@ -72,7 +72,7 @@ def create_random_policy(nA):
         return A
     return policy_fn
 
-def create_greedy_policy(Q):
+def create_greedy_policy(Q,A):
     """
     Creates a greedy policy based on Q values.
     
@@ -85,22 +85,27 @@ def create_greedy_policy(Q):
     """
     
     def policy_fn(state):
-        A = np.zeros_like(Q[state], dtype=float)
+        A = np.array([0.05,0.05,0.05,0.05])
         best_action = np.argmax(Q[state])
-        A[best_action] = 1.0
+                # print(A[i])
+        A[best_action] = 0.85
+
         return A
     return policy_fn
-    
+# def target_policy(Q,state,action):
+
 def mc_control_importance_sampling(env, num_episodes, behavior_policy, discount_factor=1.0):
 # The final action-value function.
 # A dictionary that maps state -> action values
     Q = defaultdict(lambda: np.zeros(env.action_space.n))
+    
+    # print(Q)
     # The cumulative denominator of the weighted importance sampling formula
     # (across all episodes)
     C = defaultdict(lambda: np.zeros(env.action_space.n))
-    
+    A = np.array([0.05,0.05,0.05,0.05])
     # Our greedily policy we want to learn
-    target_policy = create_greedy_policy(Q)
+    target_policy = create_greedy_policy(Q,A)
         
     for i_episode in range(1, num_episodes + 1):
         # Print out which episode we're on, useful for debugging.
@@ -112,7 +117,7 @@ def mc_control_importance_sampling(env, num_episodes, behavior_policy, discount_
         # An episode is an array of (state, action, reward) tuples
         episode = []
         state = env.reset()
-        for t in range(100):
+        for t in range(1000):
             # Sample an action from our policy
             probs = behavior_policy(state)
             action = np.random.choice(np.arange(len(probs)), p=probs)
@@ -128,6 +133,7 @@ def mc_control_importance_sampling(env, num_episodes, behavior_policy, discount_
         W = 1.0
         # For each step in the episode, backwards
         for t in range(len(episode))[::-1]:
+            
             state, action, reward = episode[t]
             state = tuple(state)
             # Update the total reward since step t
@@ -136,14 +142,18 @@ def mc_control_importance_sampling(env, num_episodes, behavior_policy, discount_
             C[state][action] += W
             # Update the action-value function using the incremental update formula (5.7)
             # This also improves our target policy which holds a reference to Q
-            Q[state][action] += (W / C[state][action]) * (G - Q[state][action])
+            Q[state][action] += (W /( C[state][action]+1e-60)) * (G - Q[state][action])
             # If the action taken by the behavior policy is not the action 
             # taken by the target policy the probability will be 0 and we can break
-            if action !=  np.argmax(target_policy(state)):
-                break
-            W = W * 1./behavior_policy(state)[action]
-        if i_episode %250 == 0:
+            if action ==  np.argmax(target_policy(state)):
+            #     break
+                W = W * (0.85/0.25)
+            else:
+                W = W * (0.05/0.25)
 
+            # print(t)
+        if i_episode %250 == 0:
+            print(W)
             print(G)
     return Q, target_policy
 
