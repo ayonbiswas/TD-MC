@@ -11,6 +11,7 @@ from collections import defaultdict
 import random
 import json
 
+from gym import wrappers
 
 
 
@@ -24,6 +25,7 @@ class NeuralNetwork():
         self.model.compile(loss='mse', optimizer=adam)
         if isinstance(weights, str):
             self.model.load_weights(weights)
+            print("weights loaded")
 
     def predict(self, state):
         return self.model.predict_on_batch(state)
@@ -68,13 +70,11 @@ class DeepSarsaAgent():
 		self.model.fit(X, y)
 
 	def simulate(self, numTrials=10, train=False, verbose=False):
-		
+		episode_length = []
 		totalRewards = []
 		max_totalReward = 0
 		if not train:	
-		# self.env.close()
-			self.env = wrappers.Monitor(self.env, './video/MC_tile_{}'.format(self.number_tilings), video_callable=lambda episode_id: True,force = True)
-
+			self.env = wrappers.Monitor(self.env, './video/Dsarsa', video_callable=lambda episode_id: True,force = True)
 		for trial in range(numTrials):
 			state = np.reshape(env.reset(), (1,8))
 			action = self.getAction(state)
@@ -86,7 +86,6 @@ class DeepSarsaAgent():
 				newState, reward, done, info = env.step(action)
 				newState = np.reshape(newState, (1,8))
 				newAction = self.getAction(newState)
-
 
 
 				if train:
@@ -103,31 +102,33 @@ class DeepSarsaAgent():
 
 			totalRewards.append(totalReward)
 			mean_totalReward = np.mean(totalRewards[-5:])
+			episode_length.append(iteration)
 			if verbose:
 				print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
 				print(('Mean(last 10 total rewards): {}'.format(np.mean(totalRewards[-10:]))))
 			if((mean_totalReward>max_totalReward) and (train==True)):
 				# Save Weights
-				self.model.save_weights('./weights/deep_sarsa_{}_{}.h5'.format(trial,mean_totalReward))
+				self.model.save_weights('./weights/deep_sarsa_{}.h5'.format(trial))
 				max_totalReward = mean_totalReward
 				print('The weights are saved with total rewards: ',mean_totalReward)
-
-			print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
-
-		np.save("./rewards/deep_sarsa_{}.npy".format(numTrials), totalRewards)
+			if(not train):
+				print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
+		if(train):
+			np.save("./rewards/deep_sarsa_{}.npy".format(numTrials), totalRewards)
+			np.save("./episode_length/deep_sarsa_{}.npy".format(numTrials), episode_length)
 		return totalRewards
 
 
 
 class DeepQAgent(DeepSarsaAgent):
-	def __init__(self,env,  discount, weights, alpha, explorationProb=0.2, exploreProbDecay=0.99, explorationProbMin=0.01,render = False):
+	def __init__(self,env,  discount, weights, alpha, explorationProb=0.2, exploreProbDecay=0.99, explorationProbMin=0.01):
 		super().__init__(env, discount, weights, alpha, explorationProb=0.2, exploreProbDecay=0.99, explorationProbMin=0.01,batchSize=32)
 		self.replay = deque(maxlen=65536)
 		self.model = NeuralNetwork(batchSize, weights)
 
 	def update(self, states, actions, rewards, newStates, dones):
-		# states = np.squeeze(states)
-		# newStates = np.squeeze(newStates)
+		states = np.squeeze(states)
+		newStates = np.squeeze(newStates)
 
 		X = states
 		y = self.model.predict(states)
@@ -142,16 +143,12 @@ class DeepQAgent(DeepSarsaAgent):
 	def updateReplay(self, state, action, reward, newState, done):
 		self.replay.append((state, action, reward, newState, done))
 
-	def simulate(self,numTrials=10, train=False, verbose=False,
-			  batchSize=32):
-
+	def simulate(self,numTrials=10, train=False, verbose=False, batchSize=32):
+		episode_length = []
 		totalRewards = []  # The rewards we get on each trial
 		max_totalReward = 0
-
 		if not train:	
-		# self.env.close()
-			self.env = wrappers.Monitor(self.env, './video/MC_tile_{}'.format(self.number_tilings), video_callable=lambda episode_id: True,force = True)
-
+			self.env = wrappers.Monitor(self.env, './video/DQ', video_callable=lambda episode_id: True,force = True)
 		for trial in range(numTrials):
 			state = np.reshape(self.env.reset(), (1,8))
 			totalReward = 0
@@ -168,7 +165,6 @@ class DeepQAgent(DeepSarsaAgent):
 				totalReward += reward
 				state = newState
 				iteration += 1
-
 
 				# Conducting memory replay
 				if len(self.replay) < batchSize: # Waiting till memory size is larger than batch size
@@ -190,7 +186,7 @@ class DeepQAgent(DeepSarsaAgent):
 
 				if done:
 					break
-
+			episode_length.append(iteration)
 			totalRewards.append(totalReward)
 			mean_totalReward = np.mean(totalRewards[-5:])
 			if verbose:
@@ -199,14 +195,14 @@ class DeepQAgent(DeepSarsaAgent):
 
 			if((mean_totalReward>max_totalReward) and (train==True)):
 				# Save Weights
-				self.model.save_weights('./weights/deep_Q_{}_{}.h5'.format(trial,mean_totalReward))
+				self.model.save_weights('./weights/deep_Q_{}.h5'.format(trial))
 				max_totalReward = mean_totalReward
 				print('The weights are saved with total rewards: ',mean_totalReward)
-
-			print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
-
-		np.save("./rewards/deep_Q_{}.npy".format(numTrials), totalRewards)
-
+			if(not train):
+				print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
+		if(train):
+			np.save("./rewards/deep_Q_{}.npy".format(numTrials), totalRewards)
+			np.save("./episode_length/deep_Q_{}.npy".format(numTrials), episode_length)
 		return totalRewards
 
 
@@ -230,13 +226,11 @@ class DeepMCAgent(DeepSarsaAgent):
 
 
 	def simulate(self, numTrials=10, train=False, verbose=False):
-
+		episode_length = []
 		totalRewards = []  # The rewards we get on each trial
-		max_totalReward = 0
+		max_totalReward = -200
 		if not train:	
-		# self.env.close()
-			self.env = wrappers.Monitor(self.env, './video/MC_tile_{}'.format(self.number_tilings), video_callable=lambda episode_id: True,force = True)
-
+			self.env = wrappers.Monitor(self.env, './video/D_MC', video_callable=lambda episode_id: True,force = True)
 		for trial in range(numTrials):
 			state = np.reshape(self.env.reset(), (1,8))
 			totalReward = 0
@@ -251,7 +245,6 @@ class DeepMCAgent(DeepSarsaAgent):
 				newState = np.reshape(newState, (1,8))
 				trajectory.append((state, action, newState, reward, done))
 				rewards.append(reward)
-
 
 
 				totalReward += reward
@@ -279,26 +272,28 @@ class DeepMCAgent(DeepSarsaAgent):
 
 
 				self.explorationProb = max(self.exploreProbDecay * self.explorationProb, self.explorationProbMin)
-
+			episode_length.append(iteration)
 			totalRewards.append(totalReward)
 			mean_totalReward = np.mean(totalRewards[-5:])
-			if verbose:
+			if verbose and trial %20 == 0:
 				print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
 				print(('Mean(last 10 total rewards): {}'.format(np.mean(totalRewards[-10:]))))
 				
 			if((mean_totalReward>max_totalReward) and (train==True)):
 				# Save Weights
-				self.model.save_weights('./weights/deep_MC_{}_{}.h5'.format(trial,mean_totalReward))
+				self.model.save('./weights/deep_MC_{}.h5'.format(trial))
 				max_totalReward = mean_totalReward
 				print('The weights are saved with total rewards: ',mean_totalReward)
-
-			# print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
-		np.save("./rewards/deep_MC_{}.npy".format(numTrials), totalRewards)
+			if(not train):
+				print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
+		if(train):
+			np.save("./rewards/deep_MC_{}.npy".format(numTrials), totalRewards)
+			np.save("./episode_length/deep_MC_{}.npy".format(numTrials), episode_length)
 
 		return totalRewards
 
 ## Main variables
-numEpochs = 1000
+numEpochs = 2000
 numTrials = 1
 numTestTrials = 10
 trialDemoInterval = numTrials/2
@@ -306,7 +301,7 @@ discountFactor = 0.99
 explorProbInit = 1.0
 exploreProbDecay = 0.999
 explorationProbMin = 0.0
-batchSize = 2
+batchSize = 64
 
 if __name__ == '__main__':
 	# Initiate weights
@@ -317,27 +312,21 @@ if __name__ == '__main__':
 	env = gym.make('LunarLander-v2')
 	# TRAIN
 	print('\n++++++++++++ TRAINING +++++++++++++')
-	rl = DeepMCAgent(env, discountFactor, weights,
+	rl = DeepQAgent(env, discountFactor, weights,
 							explorProbInit, exploreProbDecay,
 							explorationProbMin, batchSize)
 	
-	# env.seed(0)
-
 	totalRewards_list = []
-	# for i in range(numEpochs):
-	totalRewards = rl.simulate( 1000, train=True, verbose=True)
-	# totalRewards_list.append(totalRewards)
-	# print('Average Total Reward in Trial {}/{}: {}'.format(i, numEpochs, np.mean(totalRewards)))
-	env.close()
+	totalRewards = rl.simulate(numEpochs, train=True, verbose=True)
 	# Save Weights
-	rl.model.save('weights_deepsarsa.h5')
+	# # TEST
+	# weights = "./weights/deep_MC_2694.h5"
+	# print('\n\n++++++++++++++ TESTING +++++++++++++++')
+	# rl = DeepMCAgent(env, discountFactor, weights,
+	# 					explorProbInit, exploreProbDecay,
+	# 					explorationProbMin, batchSize)
+	# totalRewards =  rl.simulate(numTestTrials, train=False, verbose=True)
+	# env.close()
+	# print('Average Total Testing Reward: {}'.format(np.mean(totalRewards)))
 
-	# TEST
-	print('\n\n++++++++++++++ TESTING +++++++++++++++')
-	weights = 'weights_deepsarsa.h5'
-	env = gym.make('LunarLander-v2')
-	env.seed(3)
-	rl = SarsaAlgorithm([0, 1, 2, 3], discountFactor, weights, 0.0, 0.0, 0.0, batchSize)
-	totalRewards = simulate(env, rl, numTrials=numTestTrials, train=False, verbose=True,)
-	env.close()
-	print('Average Total Testing Reward: {}'.format(np.mean(totalRewards)))
+

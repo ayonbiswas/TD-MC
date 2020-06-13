@@ -15,7 +15,7 @@ plt.rcParams['axes.labelweight'] = 'bold'
 plt.rcParams['axes.titleweight'] = 'bold'
 
 
-def plot_episode_stats(episode_lengths,episode_rewards,fname, smoothing_window=25, noshow=False):
+def plot_episode_stats(episode_lengths,episode_rewards,fname, smoothing_window=25, noshow=True):
     # Plot the episode length over time
     fig1 = plt.figure(figsize=(10,7))
     plt.plot(pd.Series(episode_lengths).rolling(smoothing_window, min_periods=smoothing_window).mean())
@@ -23,7 +23,7 @@ def plot_episode_stats(episode_lengths,episode_rewards,fname, smoothing_window=2
     plt.ylabel("Episode Length")
     plt.title("Episode Length over Time", y=1.04)
     plt.grid(True)
-    plt.savefig("./{}_epi_length.png".format(fname),dpi = 150, bbox_inches='tight')
+    plt.savefig("./episode_length_plots/{}_epi_length.png".format(fname),dpi = 150, bbox_inches='tight')
     if noshow:
         plt.close(fig1)
     else:
@@ -37,7 +37,7 @@ def plot_episode_stats(episode_lengths,episode_rewards,fname, smoothing_window=2
     plt.ylabel("Episode Reward (Smoothed)")
     plt.title("Episode Reward over Time (Smoothed over window size {})".format(smoothing_window), y=1.04)
     plt.grid(True)
-    plt.savefig("./{}_epi_reward.png".format(fname),dpi = 150, bbox_inches='tight')
+    plt.savefig("./reward_plots/{}_epi_reward.png".format(fname),dpi = 150, bbox_inches='tight')
     if noshow:
         plt.close(fig2)
     else:
@@ -48,10 +48,11 @@ def plot_episode_stats(episode_lengths,episode_rewards,fname, smoothing_window=2
 
 
 
+fname = ["Q_tile_1","Q_tile_2"]
+# fname = ["MC_tile_3","Q_tile_3","sarsa_tile_3"]
+folder = ['tile']
+for f in fname:
+	episode_lengths = np.load("./{}/iterations/{}.npy".format(folder[0],f))
+	episode_rewards = np.load("./{}/rewards/{}.npy".format(folder[0], f))
 
-fname = "MC_tile_3"
-path = 'tile'
-episode_lengths = np.load("./{}/iterations/{}.npy".format(tile,fname))
-episode_rewards = np.load("./{}/rewards/{}.npy".format(tile, fname))
-
-plot_episode_stats(episode_lengths,episode_rewards,fname)
+	plot_episode_stats(episode_lengths,episode_rewards,f)

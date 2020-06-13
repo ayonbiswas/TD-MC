@@ -47,7 +47,7 @@ class QTilecoder():
 		self.state_bounds = [(-1.5,1.5) for i in range(6)] + [(0,1),(0,1)]
 		# self.tiles_per_dim = [5,5,3,3,2,5,1,1]
 		self.tiles_per_dim = [3,3,3,3,2,5,1,1]
-		self.number_tilings = 3
+		self.number_tilings = 1
 		self.Tcoder = TileCoder(self.tiles_per_dim, self.state_bounds, self.number_tilings)
 
 	def getAction(self, state):
@@ -81,7 +81,6 @@ class QTilecoder():
 		max_totalReward = 0 
 		episode_length = []
 		if not train:	
-		# self.env.close()
 			self.env = wrappers.Monitor(self.env, './video/Q_tile_{}'.format(self.number_tilings), video_callable=lambda episode_id: True,force = True)
 		for trial in range(numTrials):
 			state = self.env.reset()
@@ -122,7 +121,7 @@ class QTilecoder():
 				max_totalReward = mean_totalReward
 				print('The weights are saved with total rewards: ',mean_totalReward)
 
-				if train:		
+		if train:		
 			np.save("./rewards/Q_tile_{}.npy".format(self.number_tilings), totalRewards)
 			np.save("./iterations/Q_tile_{}.npy".format(self.number_tilings), episode_length)
 
@@ -211,7 +210,8 @@ class SarsaTilecoder(QTilecoder):
 				max_totalReward = mean_totalReward
 				print('The weights are saved with total rewards: ',mean_totalReward)
 
-			print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
+			if(not train):
+				print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
 		if train:
 			np.save("./rewards/sarsa_tile_{}.npy".format(self.number_tilings), totalRewards)
 			np.save("./iterations/sarsa_tile_{}.npy".format(self.number_tilings), episode_length)
@@ -232,7 +232,7 @@ class MCTilecoder(QTilecoder):
 
 	def simulate(self, numTrials=10, train=False, verbose=False):
 		totalRewards = []  # The rewards we get on each trial
-		max_totalReward = 0
+		max_totalReward = -100
 		episode_length = []
 		if not train:	
 		# self.env.close()
@@ -310,23 +310,23 @@ if __name__ == '__main__':
 	env = gym.make('LunarLander-v2')
 	# env.seed(0)
 	# TRAIN
-	# print('\n++++++++++++ TRAINING +++++++++++++')\
+	print('\n++++++++++++ TRAINING +++++++++++++')
 	# model = defaultdict(float)
 	# rl = MCTilecoder(env, model, discountFactor, explorProbInit, exploreProbDecay,
-						# explorationProbMin)
+	# 					explorationProbMin)
 	# totalRewards = rl.simulate( numTrials=numTrials, train=True, verbose=True)
 	# env.close()
 	# print('Average Total Training Reward: {}'.format(np.mean(totalRewards)))
 	
 	# # TEST
 	# print('\n\n++++++++++++++ TESTING +++++++++++++++')
-		# model = loadF('MC_tile_2811_3')
+	# model = loadF('MC_tile_793_3')
 	# rl = MCTilecoder(env, model, discountFactor, explorProbInit, exploreProbDecay,
 	# 			explorationProbMin)
 	# totalRewards= rl.simulate(numTrials=numTestTrials, train=False, verbose=True )
 	# print('Average Total Testing Reward: {}'.format(np.mean(totalRewards)))
 
-
+	# env.close()
 	# TRAIN
 	print('\n++++++++++++ TRAINING +++++++++++++')
 	model = defaultdict(float)
@@ -337,13 +337,6 @@ if __name__ == '__main__':
 	print('Average Total Training Reward: {}'.format(np.mean(totalRewards)))
 	
 	# TEST
-	# print('\n\n++++++++++++++ TESTING +++++++++++++++')
-	# model = loadF('Q_tile_609_3')
-	# # print(model)
-	# rl = QTilecoder(env, model, discountFactor, explorProbInit, exploreProbDecay,
-	# 			explorationProbMin)
-	# totalRewards= rl.simulate(numTrials=numTestTrials, train=False, verbose=True )
-	# print('Average Total Testing Reward: {}'.format(np.mean(totalRewards)))
 
 	# TRAIN
 	# print('\n++++++++++++ TRAINING +++++++++++++')
@@ -356,9 +349,9 @@ if __name__ == '__main__':
 	
 	# # TEST
 	# print('\n\n++++++++++++++ TESTING +++++++++++++++')
-		# model = loadF('Q_tile_2811_3')
-	# rl = MCTilecoder(env, model, discountFactor, explorProbInit, exploreProbDecay,
+	# model = loadF('sarsa_tile_1103_3')
+	# rl = SarsaTilecoder(env, model, discountFactor, explorProbInit, exploreProbDecay,
 	# 			explorationProbMin)
 	# totalRewards= rl.simulate(numTrials=numTestTrials, train=False, verbose=True )
 	# print('Average Total Testing Reward: {}'.format(np.mean(totalRewards)))
-
+	# env.close()

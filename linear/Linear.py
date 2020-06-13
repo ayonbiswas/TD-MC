@@ -10,6 +10,7 @@ from keras.layers import Dense
 from collections import defaultdict
 import itertools
 import pickle
+from gym import wrappers
 
 class SarsaLinear():
     def __init__(self, env,  discount, weights, explorationProb=0.2, exploreProbDecay=0.99, explorationProbMin=0.01):
@@ -79,9 +80,14 @@ class SarsaLinear():
         return features
 
 
-    def simulate(self, numTrials=100, train=False, verbose=False, render= False):
+    def simulate(self, numTrials=100, train=False, verbose=False):
         totalRewards = []  # The rewards we get on each trial
+        episode_length = []
         max_totalReward = 0.0
+
+        if not train:   
+        # self.env.close()
+            self.env = wrappers.Monitor(self.env, './video/Lsarsa', video_callable=lambda episode_id: True,force = True)
         for trial in range(numTrials):
             state = self.env.reset()
             action = self.getAction(state)
@@ -101,40 +107,37 @@ class SarsaLinear():
                 action = newAction
                 iteration += 1
 
-                if verbose == True:
-                    still_open = self.env.render()
-                    if still_open == False: break
-
                 if done:
                     break
-
             totalRewards.append(totalReward)
+            episode_length.append(iteration)
             mean_totalReward = np.mean(totalRewards[-10:])
             if((mean_totalReward>max_totalReward) and (train==True)):
                 # Save Weights
-                self.saveF(self.weights,'./weights/linear_sarsa_{}_{}.h5'.format(trial,mean_totalReward))
+                self.saveF(self.weights,'linear_sarsa_{}'.format(trial))
                 max_totalReward = mean_totalReward
                 print('The weights are saved with total rewards: ',mean_totalReward)
-
-            print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
+            if(not train):
+                print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
 
         
 
             if trial % 20 == 0:
                 print(('\n---- Trial {} ----'.format(trial)))
                 print(('Mean(last 20 total rewards): {}'.format(np.mean(totalRewards[-20:]))))
-                print(('Size(weight vector): {}'.format(len(self.weights))))
+        if(train):
+            np.save("./rewards/linear_sarsa_{}.npy".format(numTrials), totalRewards)
+            np.save("./episode_length/linear_sarsa_{}.npy".format(numTrials), episode_length)
 
-        np.save("./rewards/linear_sarsa_{}.npy".format(numTrials), totalRewards)
         return totalRewards, self.weights
 
     def saveF(self,obj, name):
         with open('weights/' + name + '.pkl', 'wb') as f:
             pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
-    def loadF(self,name):
-        with open(self,'weights/' + name + '.pkl', 'rb') as f:
-            return pickle.load(f)
+def loadF(name):
+    with open('weights/' + name + '.pkl', 'rb') as f:
+        return pickle.load(f)
 
 
 
@@ -164,9 +167,13 @@ class QLearningLinear(SarsaLinear):
 
 
 
-    def simulate(self, numTrials=100, train=False, verbose=False, render= False):
+    def simulate(self, numTrials=100, train=False, verbose=False):
         totalRewards = []  # The rewards we get on each trial
+        episode_length = []
         max_totalReward = 0
+        if not train:   
+        # self.env.close()
+            self.env = wrappers.Monitor(self.env, './video/LQlearn', video_callable=lambda episode_id: True,force = True)
         for trial in range(numTrials):
             state = self.env.reset()
             totalReward = 0
@@ -183,27 +190,29 @@ class QLearningLinear(SarsaLinear):
                 state = newState
                 iteration += 1
 
-                if (verbose == True):
-                    still_open = self.env.render()
-                    if still_open == False: break
 
                 if done:
                     break
 
             totalRewards.append(totalReward)
+            episode_length.append(iteration)
             mean_totalReward = np.mean(totalRewards[-10:])
             if((mean_totalReward>max_totalReward) and (train==True)):
                 # Save Weights
-                self.saveF(self.weights,'./weights/linear_sarsa_{}_{}.h5'.format(trial,mean_totalReward))
+                self.saveF(self.weights,'linear_qlearning_{}'.format(trial))
                 max_totalReward = mean_totalReward
                 print('The weights are saved with total rewards: ',mean_totalReward)
+
+            if(not train):
+                print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
 
             if trial % 20 == 0:
                 print(('\n---- Trial {} ----'.format(trial)))
                 print(('Mean(last 20 total rewards): {}'.format(np.mean(totalRewards[-20:]))))
-                print(('Size(weight vector): {}'.format(len(self.weights))))
+        if(train):
+            np.save("./rewards/linear_qlearning_{}.npy".format(numTrials), totalRewards)
+            np.save("./episode_length/linear_qlearning_{}.npy".format(numTrials),episode_length)
 
-        np.save("./rewards/linear_qlearning_{}.npy".format(numTrials), totalRewards)
         return totalRewards, self.weights
 
 class Linear():
@@ -299,9 +308,13 @@ class MCLinear():
 
 
     def simulate(self, numTrials=10, train=False, verbose=False,
-                 render= False, batchSize=32):
+                 batchSize=32):
         totalRewards = []  # The rewards we get on each trial
         max_totalReward = 0
+        episode_length = []
+        if not train:   
+        # self.env.close()
+            self.env = wrappers.Monitor(self.env, './video/LMC', video_callable=lambda episode_id: True,force = True)
         for trial in range(numTrials):
             state = np.reshape(self.env.reset(), (1, 8))
             totalReward = 0
@@ -317,9 +330,6 @@ class MCLinear():
                 trajectory.append((state, action, newState, reward, done))
                 rewards.append(reward)
 
-                if verbose == True:
-                    still_open = self.env.render()
-                    if still_open == False: break
 
                 totalReward += reward
                 state = newState
@@ -349,20 +359,25 @@ class MCLinear():
 
             totalRewards.append(totalReward)
             mean_totalReward = np.mean(totalRewards[-100:])
+            episode_length.append(iteration)
             if((mean_totalReward>max_totalReward) and (train==True)):
                 # Save Weights
-                self.model.save('linear_MC_{}_{}.h5'.format(trial,mean_totalReward))
+                self.model.save('linear_MC_{}'.format(trial))
                 max_totalReward = mean_totalReward
                 print('The weights are saved with total rewards: ',mean_totalReward)
 
-            print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
-        np.save("./rewards/linear_MC_{}.npy".format(numTrials), totalRewards)
+            if(not train):
+                print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
+        if(train):
+            np.save("./rewards/linear_MC_{}.npy".format(numTrials), totalRewards)
+            np.save("./episode_length/linear_MC_{}.npy".format(numTrials), episode_length)
+
 
         return totalRewards
 
 
 ## Main variables
-numTrials = 15000
+numTrials = 2000
 numTestTrials = 10
 trialDemoInterval = numTrials/2
 discountFactor = 0.99
@@ -370,65 +385,6 @@ explorProbInit = 1.0
 exploreProbDecay = 0.999
 explorationProbMin = 0.01
 batchSize = 5
-
-# if __name__ == '__main__':
-#     # Initiate weights
-#     # Cold start weights
-#     weights = None
-    # # Warm start weights
-    # #weights = './weights/weights_sarsa.h5'
-    # env = gym.make('LunarLander-v2')
-    # # TRAIN
-    # print('\n++++++++++++ TRAINING +++++++++++++')
-    # rl = MCLinear(env,[0, 1, 2, 3], discountFactor, weights,
-    #                         explorProbInit, exploreProbDecay,
-    #                         explorationProbMin, batchSize)
-    
-    # totalRewards_list = []
-    # totalRewards = rl.simulate( numTrials=numTrials, train=True, verbose=False,
-    #                         trialDemoInterval=trialDemoInterval, batchSize=batchSize)
-    # env.close()
-    # # Save Weights
-
-    # # TEST
-    # print('\n\n++++++++++++++ TESTING +++++++++++++++')
-    # weights = 'linear_MC.h5'
-    # env = gym.make('LunarLander-v2')
-    # rl = MCLinear(env,[0, 1, 2, 3], discountFactor, weights, 0.0, 0.0, 0.0, batchSize)
-    # totalRewards = rl.simulate(numTrials=numTestTrials, train=False, verbose=True, trialDemoInterval=trialDemoInterval)
-    # env.close()
-    # print('Average Total Testing Reward: {}'.format(np.mean(totalRewards)))
-
-
-# if __name__ == '__main__':
-#     # Cold start weights
-#     weights = defaultdict(float)
-#     # Warm start weights
-#     # weights = loadF('weights')
-
-#     # TRAIN
-#     env = gym.make('LunarLander-v2')
-
-#     rl = QLearningLinear(env, discountFactor,
-#                             weights, explorProbInit, exploreProbDecay,
-#                             explorationProbMin)
-#     # env.seed(0)
-#     print('\n++++++++++++ TRAINING +++++++++++++')
-#     totalRewards, weights = rl.simulate( numTrials=numTrials, train=True, verbose=False, trialDemoInterval=trialDemoInterval)
-#     env.close()
-#     print('Average Total Training Reward: {}'.format(np.mean(totalRewards)))
-
-
-#     #load weights
-#     weights = loadF('linear_qlearning')
-
-#     #TEST
-#     print('\n\n++++++++++++++ TESTING +++++++++++++++')
-#     rl = QLearningLinear(env, discountFactor,
-#                             weights, 0.0, 1,
-#                             0.00)
-#     totalRewards, _ = rl.simulate( numTrials=numTestTrials, train=False, verbose=True, trialDemoInterval=trialDemoInterval)
-#     print('Average Total Testing Reward: {}'.format(np.mean(totalRewards)))
 
 
 if __name__ == '__main__':
@@ -440,23 +396,23 @@ if __name__ == '__main__':
     # TRAIN
     env = gym.make('LunarLander-v2')
 
-    rl = SarsaLinear(env, discountFactor,
+    rl =MCLinear(env, discountFactor,
                             weights, explorProbInit, exploreProbDecay,
                             explorationProbMin)
     # env.seed(0)
     print('\n++++++++++++ TRAINING +++++++++++++')
-    totalRewards, weights = rl.simulate( numTrials=numTrials, train=True, verbose=False, render =False)
+    totalRewards, weights = rl.simulate( numTrials=numTrials, train=True, verbose=True)
     env.close()
     print('Average Total Training Reward: {}'.format(np.mean(totalRewards)))
 
 
     #load weights
-    weights = loadF('linear_Sarsa')
+    # weights = loadF('linear_sarsa_1681')
 
-    #TEST
-    print('\n\n++++++++++++++ TESTING +++++++++++++++')
-    rl = SarsaLinear(env, discountFactor,
-                            weights, 0.0, 1,
-                            0.00)
-    totalRewards, _ = rl.simulate( numTrials=numTestTrials, train=False, verbose=True, render =False)
-    print('Average Total Testing Reward: {}'.format(np.mean(totalRewards)))
+    # #TEST
+    # print('\n\n++++++++++++++ TESTING +++++++++++++++')
+    # rl = SarsaLinear(env, discountFactor,
+    #                         weights, 0.0, 1,
+    #                         0.00)
+    # totalRewards, _ = rl.simulate( numTrials=numTestTrials, train=False, verbose=True)
+    # print('Average Total Testing Reward: {}'.format(np.mean(totalRewards)))
