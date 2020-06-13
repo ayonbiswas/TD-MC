@@ -13,6 +13,7 @@ import json
 import pickle
 from gym import wrappers
 
+#https://github.com/MeepMoop/tilecoding
 class TileCoder:
 	def __init__(self, tiles_per_dim, value_limits, tilings, offset=lambda n: 2 * np.arange(n) + 1):
 		tiling_dims = np.array(np.ceil(tiles_per_dim), dtype=np.int) + 1

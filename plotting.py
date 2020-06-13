@@ -15,7 +15,7 @@ plt.rcParams['axes.labelweight'] = 'bold'
 plt.rcParams['axes.titleweight'] = 'bold'
 
 
-def plot_episode_stats(episode_lengths,episode_rewards,fname, smoothing_window=25, noshow=True):
+def plot_episode_stats(episode_lengths,episode_rewards,fname, smoothing_window=50, noshow=True):
     # Plot the episode length over time
     fig1 = plt.figure(figsize=(10,7))
     plt.plot(pd.Series(episode_lengths).rolling(smoothing_window, min_periods=smoothing_window).mean())

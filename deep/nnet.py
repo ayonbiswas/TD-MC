@@ -21,7 +21,7 @@ class NeuralNetwork():
         self.model.add(Dense(256, input_dim=8, activation='relu'))
         self.model.add(Dense(128, activation='relu'))
         self.model.add(Dense(4, activation='linear'))
-        adam = keras.optimizers.adam(lr=0.0001)
+        adam = keras.optimizers.adam(lr=0.001)
         self.model.compile(loss='mse', optimizer=adam)
         if isinstance(weights, str):
             self.model.load_weights(weights)
@@ -65,7 +65,7 @@ class DeepSarsaAgent():
 		Q = self.model.predict(newStates)
 		Q_next = np.take(Q,newActions)
 		ind = np.array([i for i in range(len(states))])
-		y[[ind], [actions]] = (0.5)*y[[ind], [actions]] + 0.5*(rewards + self.discount*(Q_next)*(1-dones))
+		y[[ind], [actions]] = rewards + self.discount*(Q_next)*(1-dones)
 
 		self.model.fit(X, y)
 
@@ -108,7 +108,7 @@ class DeepSarsaAgent():
 				print(('Mean(last 10 total rewards): {}'.format(np.mean(totalRewards[-10:]))))
 			if((mean_totalReward>max_totalReward) and (train==True)):
 				# Save Weights
-				self.model.save_weights('./weights/deep_sarsa_{}.h5'.format(trial))
+				self.model.save('./weights/deep_sarsa_{}.h5'.format(trial))
 				max_totalReward = mean_totalReward
 				print('The weights are saved with total rewards: ',mean_totalReward)
 			if(not train):
@@ -136,8 +136,8 @@ class DeepQAgent(DeepSarsaAgent):
 		# print(X.shape,y.shape)
 		ind = np.array([i for i in range(states.shape[0])])
 
-		y[[ind], [actions]] =0.5* y[[ind], [actions]]+ 0.5*(rewards + self.discount*(np.amax(self.model.predict(newStates), axis=1))*(1-dones) )
-		
+		# y[[ind], [actions]] =0.5* y[[ind], [actions]]+ 0.5*(rewards + self.discount*(np.amax(self.model.predict(newStates), axis=1))*(1-dones) )
+		y[[ind], [actions]] = rewards + self.discount*(np.amax(self.model.predict(newStates), axis=1))*(1-dones)
 		self.model.fit(X, y)
 
 	def updateReplay(self, state, action, reward, newState, done):
@@ -195,7 +195,7 @@ class DeepQAgent(DeepSarsaAgent):
 
 			if((mean_totalReward>max_totalReward) and (train==True)):
 				# Save Weights
-				self.model.save_weights('./weights/deep_Q_{}.h5'.format(trial))
+				self.model.save('./weights/deep_Q_{}.h5'.format(trial))
 				max_totalReward = mean_totalReward
 				print('The weights are saved with total rewards: ',mean_totalReward)
 			if(not train):
@@ -218,7 +218,7 @@ class DeepMCAgent(DeepSarsaAgent):
 		y = self.model.predict(states)
 		# targets = rewards + self.discount*(np.amax(self.model.predict(newStates), axis=1))*(1-dones)
 		ind = np.array([i for i in range(len(states))])
-		y[[ind], [actions]] = (0.5)*y[[ind], [actions]] + 0.5*(rewards)
+		y[[ind], [actions]] = rewards
 		
 		# y[[ind], [actions]] = targets
 		# update weight
@@ -293,7 +293,7 @@ class DeepMCAgent(DeepSarsaAgent):
 		return totalRewards
 
 ## Main variables
-numEpochs = 2000
+numEpochs = 400
 numTrials = 1
 numTestTrials = 10
 trialDemoInterval = numTrials/2
@@ -301,7 +301,7 @@ discountFactor = 0.99
 explorProbInit = 1.0
 exploreProbDecay = 0.999
 explorationProbMin = 0.0
-batchSize = 64
+batchSize = 32
 
 if __name__ == '__main__':
 	# Initiate weights

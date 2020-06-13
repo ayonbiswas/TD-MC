@@ -366,6 +366,10 @@ class MCLinear():
                 max_totalReward = mean_totalReward
                 print('The weights are saved with total rewards: ',mean_totalReward)
 
+
+            if trial % 20 == 0:
+                print(('\n---- Trial {} ----'.format(trial)))
+                print(('Mean(last 20 total rewards): {}'.format(np.mean(totalRewards[-20:]))))
             if(not train):
                 print(('Trial {} Total Reward: {}'.format(trial, totalReward)))
         if(train):
@@ -377,7 +381,7 @@ class MCLinear():
 
 
 ## Main variables
-numTrials = 2000
+numTrials = 10000
 numTestTrials = 10
 trialDemoInterval = numTrials/2
 discountFactor = 0.99

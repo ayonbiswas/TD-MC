@@ -161,5 +161,5 @@ class MC_offpolicy:
 
 env =gym.make("LunarLander-v2")
 random_policy = random_policy(env.action_space.n)
-rl =  MC_offpolicy(env, num_episodes=200)
+rl =  MC_offpolicy(env, num_episodes=10000)
 Q, target_policy = rl.simulate(render= False,train = True,verbose= True)
