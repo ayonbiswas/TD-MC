@@ -312,7 +312,7 @@ if __name__ == '__main__':
 	env = gym.make('LunarLander-v2')
 	# TRAIN
 	print('\n++++++++++++ TRAINING +++++++++++++')
-	rl = DeepQAgent(env, discountFactor, weights,
+	rl = DeepSarsaAgent(env, discountFactor, weights,
 							explorProbInit, exploreProbDecay,
 							explorationProbMin, batchSize)
 	
