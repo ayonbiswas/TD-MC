@@ -165,27 +165,27 @@ if __name__ == '__main__':
 #     weights = 'weights.h5'
     print("asdasdasd")
     # # TRAIN
-    print('\n++++++++++++ TRAINING +++++++++++++')
-    rl = QLearningAlgorithm([0, 1, 2, 3], discountFactor, weights,
-                            explorProbInit, exploreProbDecay,
-                            explorationProbMin, batchSize)
-    env = gym.make('LunarLander-v2')
-    # env.seed(0)
+    # print('\n++++++++++++ TRAINING +++++++++++++')
+    # rl = QLearningAlgorithm([0, 1, 2, 3], discountFactor, weights,
+    #                         explorProbInit, exploreProbDecay,
+    #                         explorationProbMin, batchSize)
+    # env = gym.make('LunarLander-v2')
+    # # env.seed(0)
     
-    for i in range(numEpochs):
-        totalRewards = simulate(env, rl, numTrials=numTrials, train=True, verbose=False,
-                                trialDemoInterval=trialDemoInterval, batchSize=batchSize)
-        print('Average Total Reward in Trial {}/{}: {}'.format(i, numEpochs, np.mean(totalRewards)))
-    env.close()
+    # for i in range(numEpochs):
+    #     totalRewards = simulate(env, rl, numTrials=numTrials, train=True, verbose=False,
+    #                             trialDemoInterval=trialDemoInterval, batchSize=batchSize)
+    #     print('Average Total Reward in Trial {}/{}: {}'.format(i, numEpochs, np.mean(totalRewards)))
+    # env.close()
     # #Save Weights
     # rl.model.save('weights_qtry2.h5')
 
     # TEST
-    # print('\n\n++++++++++++++ TESTING +++++++++++++++')
-    # weights = 'weights_qtry2.h5'
-    # env = gym.make('LunarLander-v2')
-    # #env.seed(3)
-    # rl = QLearningAlgorithm([0, 1, 2, 3], discountFactor, weights, 0.0, 0.0, 0.0, batchSize)
-    # totalRewards = simulate(env, rl, numTrials=numTestTrials, train=False, verbose=True, trialDemoInterval=trialDemoInterval)
-    # env.close()
-    # print('Average Total Testing Reward: {}'.format(np.mean(totalRewards)))
+    print('\n\n++++++++++++++ TESTING +++++++++++++++')
+    weights = 'weights_qtry2.h5'
+    env = gym.make('LunarLander-v2')
+    #env.seed(3)
+    rl = QLearningAlgorithm([0, 1, 2, 3], discountFactor, weights, 0.0, 0.0, 0.0, batchSize)
+    totalRewards = simulate(env, rl, numTrials=numTestTrials, train=False, verbose=True, trialDemoInterval=trialDemoInterval)
+    env.close()
+    print('Average Total Testing Reward: {}'.format(np.mean(totalRewards)))
